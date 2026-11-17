@@ -40,19 +40,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Python API (구현체를 rule → onnx 로 교체, scikit-learn 없이 서빙)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: api/Dockerfile
-          push: true
-          build-args: |
-            MODEL_IMPL=onnx
-            APP_VERSION=${{ github.ref_name }}
-          tags: |
-            ${{ env.IMAGE }}/eta-api:${{ github.ref_name }}
-            ${{ env.IMAGE }}/eta-api:latest
-
       - name: Go 서비스 (같은 ONNX 모델)
         uses: docker/build-push-action@v7
         with:
@@ -64,18 +51,6 @@ jobs:
           tags: |
             ${{ env.IMAGE }}/eta-go:${{ github.ref_name }}
             ${{ env.IMAGE }}/eta-go:latest
-
-      - name: Rust 서비스 (같은 ONNX 모델)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: api-rust/Dockerfile
-          push: true
-          build-args: |
-            APP_VERSION=${{ github.ref_name }}
-          tags: |
-            ${{ env.IMAGE }}/eta-rust:${{ github.ref_name }}
-            ${{ env.IMAGE }}/eta-rust:latest
 
 
   deploy: # ── 서버 배포: GitHub 러너가 SSH 로 Lightsail 서버에 들어가 새 이미지로 바꾼다 (3단계에서 내 서버의 러너로) ──

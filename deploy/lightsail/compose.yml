@@ -1,7 +1,7 @@
 # 서버의 바라는 상태는 .env : IMAGE, TAG, MODEL_VERSION, MODEL_DIR
 services:
   api:
-    image: ${IMAGE}/eta-api:${TAG}
+    image: ${IMAGE}/eta-go:${TAG}
     restart: unless-stopped
     ports:
       - "80:8080" # 서버의 80(HTTP) → 컨테이너의 8080

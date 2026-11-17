@@ -26,7 +26,7 @@ case "$1" in
     trap 'rm -rf "$DOCKER_CONFIG"' EXIT
     printf %s "$TOKEN" | docker login ghcr.io -u token --password-stdin >/dev/null
     PREV=$(grep '^TAG=' .env | cut -d= -f2 || true)
-    docker pull -q "$IMAGE/eta-api:$TAG"
+    docker pull -q "$IMAGE/eta-go:$TAG"
     setenv IMAGE "$IMAGE"; setenv TAG "$TAG"
     docker compose up -d
     if ! health; then
