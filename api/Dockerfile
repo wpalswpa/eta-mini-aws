@@ -15,6 +15,8 @@ COPY api/ api/
 
 ARG MODEL_IMPL=rule
 ENV MODEL_IMPL=${MODEL_IMPL}
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 
 EXPOSE 8080
 CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -8,10 +8,15 @@ client = TestClient(app)
 
 
 def test_health():
-    """/health 는 200 과 status=ok, 현재 구현체 이름을 돌려준다."""
+    """/health 는 200 과 status=ok, 현재 구현체·앱·모델 판 번호를 돌려준다."""
     res = client.get("/health")
     assert res.status_code == 200
-    assert res.json() == {"status": "ok", "model": app_module.MODEL_IMPL}
+    assert res.json() == {
+        "status": "ok",
+        "model": app_module.MODEL_IMPL,
+        "app_version": app_module.APP_VERSION,
+        "model_version": app_module.MODEL_VERSION,
+    }
 
 
 @pytest.mark.parametrize(

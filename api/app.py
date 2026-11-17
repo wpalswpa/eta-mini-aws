@@ -1,4 +1,5 @@
 import importlib
+import json
 import math
 import os
 from fastapi import FastAPI, HTTPException, Request
@@ -8,6 +9,9 @@ from pydantic import BaseModel, Field
 
 # 어떤 방식의 API를 쓸 것인지를 외부에서 환경변수를 통해 주입
 MODEL_IMPL = os.getenv("MODEL_IMPL", "rule")
+APP_VERSION = os.getenv("APP_VERSION", "dev")
+_card = os.path.join(os.getenv("MODEL_DIR", "artifacts"), "model.json")
+MODEL_VERSION = json.load(open(_card))["model_version"] if os.path.exists(_card) else "baked"
 estimate_delivery_minutes = importlib.import_module(f"api.predictors.{MODEL_IMPL}").estimate_delivery_minutes
 
 class EtaRequest(BaseModel):
@@ -48,7 +52,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.get("/health")
 def health() -> dict[str, str]:
     """서비스 상태와 현재 구현체 이름을 돌려준다."""
-    return {"status": "ok", "model": MODEL_IMPL}
+    return {"status": "ok", "model": MODEL_IMPL, "app_version": APP_VERSION, "model_version": MODEL_VERSION}
 
 @app.post("/eta", response_model=EtaResponse)
 def eta(req: EtaRequest) -> EtaResponse:
