@@ -95,7 +95,7 @@ jobs:
           install -m 600 /dev/null ~/key.pem
           printf '%s\n' "$SSH_KEY" > ~/key.pem
           # 처음 보는 서버의 호스트 키를 그대로 믿는다 (1단계의 약점 — 2단계에서 없앤다)
-          echo "SSH=ssh -i $HOME/key.pem -o StrictHostKeyChecking=accept-new ec2-user@${{ vars.LIGHTSAIL_HOST }}" >> "$GITHUB_ENV"
+          echo "SSH=ssh -i $HOME/key.pem -o StrictHostKeyChecking=accept-new ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}" >> "$GITHUB_ENV"
       - name: 배포 파일 보내기
         run: tar -cf - -C deploy/lightsail compose.yml server.sh | $SSH 'tar -xf - -C /srv/eta'
       - name: 새 이미지로 바꾸기 (토큰은 stdin 으로만)
