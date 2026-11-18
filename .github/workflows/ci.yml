@@ -40,45 +40,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Go 서비스 (같은 ONNX 모델)
+      - name: Python API (구현체를 rule → onnx 로 교체, scikit-learn 없이 서빙)
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: api-go/Dockerfile
+          file: api/Dockerfile
           push: true
           build-args: |
+            MODEL_IMPL=onnx
             APP_VERSION=${{ github.ref_name }}
           tags: |
-            ${{ env.IMAGE }}/eta-go:${{ github.ref_name }}
-            ${{ env.IMAGE }}/eta-go:latest
+            ${{ env.IMAGE }}/eta-api:${{ github.ref_name }}
+            ${{ env.IMAGE }}/eta-api:latest
 
 
-  deploy: # ── 서버 배포: GitHub 러너가 SSH 로 Lightsail 서버에 들어가 새 이미지로 바꾼다 (3단계에서 내 서버의 러너로) ──
+  deploy: # ── 서버 배포: 내 서버의 러너가 새 이미지로 바꾼다 ──
     needs: [image, release]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, lightsail] # 내 서버에 등록한 러너
     concurrency: { group: lightsail, cancel-in-progress: false }
     permissions:
       contents: read
-      packages: read # 서버가 비공개 GHCR 이미지를 받을 때 쓸 토큰 권한
+      packages: read
     steps:
-      - uses: actions/checkout@v7
-      - name: SSH 키 준비
-        env:
-          SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-        run: |
-          install -m 600 /dev/null ~/key.pem
-          printf '%s\n' "$SSH_KEY" > ~/key.pem
-          # 처음 보는 서버의 호스트 키를 그대로 믿는다 (1단계의 약점 — 2단계에서 없앤다)
-          echo "SSH=ssh -i $HOME/key.pem -o StrictHostKeyChecking=accept-new ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}" >> "$GITHUB_ENV"
-      - name: 배포 파일 보내기
-        run: tar -cf - -C deploy/lightsail compose.yml server.sh | $SSH 'tar -xf - -C /srv/eta'
+      - uses: actions/checkout@v7 # 지우지 않는다
+      - name: 배포 파일 놓기
+        run: cp deploy/lightsail/compose.yml deploy/lightsail/server.sh /srv/eta/
       - name: 새 이미지로 바꾸기 (토큰은 stdin 으로만)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           printf '%s\n' "$GH_TOKEN" | \
-            $SSH "bash /srv/eta/server.sh image $GITHUB_REF_NAME ghcr.io/${GITHUB_REPOSITORY,,}"
+            bash /srv/eta/server.sh image "$GITHUB_REF_NAME" "ghcr.io/${GITHUB_REPOSITORY,,}"
 
   # ── 모델 릴리스: 검증을 통과한 모델 파일을 GitHub Release 에 첨부 ──
   #    코드(태그) · 이미지(GHCR) · 모델(Release) 이 같은 버전(v1.0 등)으로 묶인다
