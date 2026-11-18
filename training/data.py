@@ -1,6 +1,10 @@
+import os
 import numpy as np
 
-def collect_data(n: int = 500, seed: int = 0):
+DATA_N = int(os.getenv("DATA_N", "500"))
+DATA_SEED = int(os.getenv("DATA_SEED", "0"))
+
+def collect_data(n: int = DATA_N, seed: int = DATA_SEED):
     """배달 기록을 수집한다 (여기서는 생성).
 
     같은 seed 면 항상 같은 데이터가 나온다. 학습 재현성의 출발점이다.

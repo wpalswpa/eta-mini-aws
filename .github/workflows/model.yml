@@ -1,0 +1,64 @@
+name: model
+# 모델 배포: 코드는 그대로 두고 다시 학습 → 게이트 → ONNX → parity → 승격
+on:
+  workflow_dispatch:
+    inputs:
+      data_n:
+        description: "학습 데이터 건수"
+        default: "500"
+      data_seed:
+        description: "데이터 시드"
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  train: # GitHub 러너가: 학습 → 게이트 → ONNX → 모델 카드 → parity
+    runs-on: ubuntu-latest
+    env:
+      DATA_N: ${{ inputs.data_n }}
+      DATA_SEED: ${{ inputs.data_seed }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: mkdir -p artifacts
+      - run: uv run --locked --group train python -m training.train_sklearn
+      - run: uv run --locked python -m training.validate_model sklearn # 실패하면 승격 안 됨
+      - run: uv run --locked --group train python -m training.train_dl
+      - run: uv run --locked python -m training.validate_model dl
+      - run: uv run --locked --group train python -m training.export_onnx
+      - run: uv run --locked python -m training.model_card # 버전 이름이 든 artifacts/model.json
+      - name: parity — 원본·ONNX·Go·Rust 가 같은 답인지
+        run: |
+          docker build -f api-go/Dockerfile -t eta-go .
+          docker build -f api-rust/Dockerfile -t eta-rust .
+          MODEL_IMPL=sklearn uv run --locked --group train uvicorn api.app:app --port 8080 &
+          MODEL_IMPL=onnx MODEL_DIR=artifacts uv run --locked uvicorn api.app:app --port 8083 &
+          docker run -d -p 8081:8080 eta-go
+          docker run -d -p 8082:8080 eta-rust
+          for p in 8080 8081 8082 8083; do # 넷 다 뜰 때까지 기다린다 (하나에 최대 60초)
+            curl -sf --retry 60 --retry-connrefused --retry-delay 1 -o /dev/null localhost:$p/health
+          done
+          TARGETS=go=http://127.0.0.1:8081,rust=http://127.0.0.1:8082,onnx=http://127.0.0.1:8083 \
+            uv run --locked python -m training.check_parity
+      - uses: actions/upload-artifact@v7
+        with:
+          name: model-artifacts
+          path: artifacts/
+
+  promote: # 내 서버의 러너가: 버킷에 올리고 → 새 버전으로 띄워 확인 → 그 다음에 current.json
+    needs: train
+    runs-on: [self-hosted, lightsail]
+    concurrency: { group: lightsail, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: model-artifacts
+          path: incoming/
+      - run: python3 deploy/lightsail/models.py promote incoming
+        env:
+          MODEL_BUCKET: ${{ vars.MODEL_BUCKET }}

@@ -1,0 +1,22 @@
+name: rollback
+# 되돌리기: 이미지는 그대로, 버킷에 있는 옛 모델 버전으로
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "되돌릴 모델 버전 (예: m20261116-1)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, lightsail]
+    concurrency: { group: lightsail, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 deploy/lightsail/models.py rollback "$VER"
+        env:
+          VER: ${{ inputs.version }} # 입력은 env 로만 넘긴다 (명령에 바로 넣지 않는다)
+          MODEL_BUCKET: ${{ vars.MODEL_BUCKET }}

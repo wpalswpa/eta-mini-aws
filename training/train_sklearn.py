@@ -5,10 +5,10 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from training.data import collect_data
+from training.data import DATA_N, DATA_SEED, collect_data
 from api.predictors import rule
 
-X, y = collect_data(seed=0)
+X, y = collect_data()
 X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=0)
 
 model = make_pipeline(StandardScaler(), LinearRegression())  # 정규화를 모델 안에
@@ -20,7 +20,8 @@ baseline = float(np.abs(np.array([rule.estimate_delivery_minutes(a, b) for a, b 
 joblib.dump(model, "artifacts/sklearn.joblib")
 
 with open("artifacts/metrics_sklearn.json", "wt", encoding="utf-8") as f:
-    json.dump({"model": "sklearn", "mae": mae, "baseline_mae": baseline},
+    json.dump({"model": "sklearn", "mae": mae, "baseline_mae": baseline,
+               "data": {"n": DATA_N, "seed": DATA_SEED}},
               f, indent=2)
 
 print(f"sklearn 평균 오차 {mae:.2f}분  (기준선 rule {baseline:.2f}분)")
